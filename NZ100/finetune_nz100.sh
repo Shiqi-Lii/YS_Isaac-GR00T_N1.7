@@ -2,6 +2,10 @@
 
 set -x -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "$REPO_ROOT"
+
 # Server-local Hugging Face cache. Override these before launching if needed.
 export HF_HOME="${HF_HOME:-/mnt/16T/lisq5005_dir/.cache/huggingface}"
 export HUGGINGFACE_HUB_CACHE="${HUGGINGFACE_HUB_CACHE:-$HF_HOME/hub}"
@@ -31,7 +35,7 @@ DATASET_PATH="${DATASET_PATH:-data/data_open_close_package}"
 
 # 描述ckt
 RUN_DESC="${RUN_DESC:-open_close_package}"
-OUTPUT_DIR="${OUTPUT_DIR:-/mnt/16T/lisq5005_dir/Isaac-GR00T/checkpoints/nz100_${RUN_DESC}}"
+OUTPUT_DIR="${OUTPUT_DIR:-/mnt/16T/lisq5005_dir/YS_Isaac-GR00T_N1.7/checkpoints/nz100_${RUN_DESC}}"
 LOG_DIR="${LOG_DIR:-logs}"
 LOG_FILE="${LOG_FILE:-$LOG_DIR/finetune_nz100_${RUN_DESC}.log}"
 
