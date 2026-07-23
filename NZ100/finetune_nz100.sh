@@ -27,7 +27,7 @@ NUM_SHARDS_PER_EPOCH="${NUM_SHARDS_PER_EPOCH:-100000}"
 EPISODE_SAMPLING_RATE="${EPISODE_SAMPLING_RATE:-0.1}"
 
 CONDA_ROOT="/mnt/16T/App_dir/conda_dir/miniconda3"
-CONDA_ENV="${CONDA_ROOT}/envs/gr00t_lsq"
+GR00T_CONDA_ENV="${GR00T_CONDA_ENV:-${CONDA_ROOT}/envs/gr00t_n17_lsq}"
 
 # Point this to the local N1.7 checkpoint path on your server.
 BASE_MODEL_PATH="${BASE_MODEL_PATH:-nvidia/GR00T-N1.7-3B}"
@@ -42,7 +42,7 @@ LOG_FILE="${LOG_FILE:-$LOG_DIR/finetune_nz100_${RUN_DESC}.log}"
 mkdir -p "$LOG_DIR"
 
 source "${CONDA_ROOT}/etc/profile.d/conda.sh"
-conda activate "${CONDA_ENV}"
+conda activate "${GR00T_CONDA_ENV}"
 
 echo "Using python: $(which python)"
 python -V
@@ -76,7 +76,7 @@ LAUNCH_CMD=(
     --episode_sampling_rate "$EPISODE_SAMPLING_RATE"
 )
 
-nohup env CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" python "${LAUNCH_CMD[@]}" \
+nohup env CUDA_VISIBLE_DEVICES="$CUDA_VISIBLE_DEVICES" PYTHONPATH="$REPO_ROOT" python "${LAUNCH_CMD[@]}" \
     > "$LOG_FILE" 2>&1 &
 
 echo "Started NZ100 finetuning in background."

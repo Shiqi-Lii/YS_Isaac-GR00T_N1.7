@@ -451,6 +451,26 @@ To finetune GR00T on your own robot data and configuration, follow the detailed 
 
 Ensure your input data follows the [GR00T LeRobot format](#data-format), and specify your modality configuration via `--modality-config-path`.
 
+临时接入自定义机器人时，可以使用 `NEW_EMBODIMENT` 加 Python modality config。若要像 `NZ100` 一样加入内置机器人 tag，需要修改：
+
+- `gr00t/data/embodiment_tags.py` — 新增 enum 名称，并加入对应 tag 集合。
+- `gr00t/configs/data/embodiment_configs.py` — 新增 `MODALITY_CONFIGS["<robot_value>"]`。
+- `gr00t/model/gr00t_n1d7/processing_gr00t_n1d7.py` — 把机器人 value 加到 embodiment-id 映射中。
+- `tests/gr00t/data/test_embodiment_tags.py` — 增加简短的 tag 解析和配置测试。
+- `<dataset>/meta/modality.json` — 确保数据集的 state/action/video key 与内置 modality config 对应。
+
+`NZ100` 已作为内置 fine-tuning tag 加入。对应数据集需要提供 `top`、`wrist_left` 两路视频，以及 `left_arm`、`left_gripper`、`right_arm`、`right_gripper` 这些 state/action 分组；action horizon 为 40。
+
+训练新数据集前，先生成匹配的归一化统计文件：
+
+```bash
+python gr00t/data/stats.py \
+    --dataset-path data/data_cylindrical_package \
+    --embodiment-tag NZ100
+```
+
+该命令会创建或更新 `meta/stats.json`；如果使用 relative action，还会创建或更新 `meta/relative_stats.json`。修改 `modality.json`、action horizon、action representation 或数据集路径后，需要重新计算统计文件。
+
 **Single GPU:**
 ```bash
 CUDA_VISIBLE_DEVICES=0 uv run python \
