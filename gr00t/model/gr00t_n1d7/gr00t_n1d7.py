@@ -368,30 +368,66 @@ class Gr00tN1d7ActionHead(nn.Module):
             assert "rtc_ramp_rate" in options, "rtc_ramp_rate is not in options"
 
             action_horizon_before_padding = options["action_horizon"]
+            rtc_guidance_weight = options.get("rtc_guidance_weight")
+            rtc_guidance_enabled = rtc_guidance_weight is not None
 
             # Use previous action instead of pure noise to do inpainting
-            actions[:, : options["rtc_overlap_steps"], :] = action_input["action"][
+            prev_actions = action_input["action"][
                 :,
                 action_horizon_before_padding
                 - options["rtc_overlap_steps"] : action_horizon_before_padding,
                 :,
             ]
-            vel_strength[:, : options["rtc_frozen_steps"], :] = 0.0
-            # NOTE: use an exponential ramp strength to set the remaining unfrozen rtc_steps
-            intermediate_steps = options["rtc_overlap_steps"] - options["rtc_frozen_steps"]
-            # Create exponential ramp from 0 to 1 over intermediate steps
-            t = torch.linspace(0.0, 1.0, intermediate_steps + 2, device=device)
-            ramp = 1 - torch.exp(-options["rtc_ramp_rate"] * t)
-            ramp = ramp / ramp[-1].clamp_min(1e-8)  # normalize to [0,1]
-            ramp = ramp[
-                1:-1
-            ]  # we will only take the middle part of the ramp, ignore the 0.0 and 1.0
-            # Apply ramp to the intermediate steps [batch, intermediate_steps, action_dim]
-            vel_strength[
-                :,
-                options["rtc_frozen_steps"] : options["rtc_overlap_steps"],
-                :,
-            ] = ramp[None, :, None].to(device)
+            actions[:, : options["rtc_overlap_steps"], :] = prev_actions
+            if not rtc_guidance_enabled:
+                vel_strength[:, : options["rtc_frozen_steps"], :] = 0.0
+                # NOTE: use an exponential ramp strength to set the remaining unfrozen rtc_steps
+                intermediate_steps = options["rtc_overlap_steps"] - options["rtc_frozen_steps"]
+                # Create exponential ramp from 0 to 1 over intermediate steps
+                t = torch.linspace(0.0, 1.0, intermediate_steps + 2, device=device)
+                ramp = 1 - torch.exp(-options["rtc_ramp_rate"] * t)
+                ramp = ramp / ramp[-1].clamp_min(1e-8)  # normalize to [0,1]
+                ramp = ramp[
+                    1:-1
+                ]  # we will only take the middle part of the ramp, ignore the 0.0 and 1.0
+                # Apply ramp to the intermediate steps [batch, intermediate_steps, action_dim]
+                vel_strength[
+                    :,
+                    options["rtc_frozen_steps"] : options["rtc_overlap_steps"],
+                    :,
+                ] = ramp[None, :, None].to(device)
+            else:
+                prev_actions = torch.nn.functional.pad(
+                    prev_actions,
+                    (
+                        0,
+                        self.action_dim - prev_actions.shape[2],
+                        0,
+                        self.config.action_horizon - prev_actions.shape[1],
+                    ),
+                )
+                positions = torch.arange(self.config.action_horizon, device=device)
+                prefix_len = min(
+                    self.config.action_horizon,
+                    max(0, int(options.get("rtc_prefix_len", options["rtc_frozen_steps"]))),
+                )
+                decay_end = min(
+                    self.config.action_horizon,
+                    max(prefix_len, int(options.get("rtc_decay_end", options["rtc_overlap_steps"]))),
+                )
+                decay_tau = max(float(options.get("rtc_decay_tau", 3.0)), 1e-6)
+                locked = positions < prefix_len
+                in_decay = (positions >= prefix_len) & (positions < decay_end)
+                decay = torch.exp(
+                    -torch.clamp(positions - prefix_len, min=0).to(dtype=actions.dtype)
+                    / decay_tau
+                )
+                guidance_weights = torch.where(
+                    locked,
+                    torch.ones_like(decay),
+                    torch.where(in_decay, decay, torch.zeros_like(decay)),
+                )[None, :, None]
+                guidance_weights = guidance_weights.to(device=device, dtype=actions.dtype)
 
         # Run denoising steps.
         for t in range(self.num_inference_timesteps):
@@ -430,6 +466,14 @@ class Gr00tN1d7ActionHead(nn.Module):
             pred = self.action_decoder(model_output, embodiment_id)
 
             pred_velocity = pred[:, -self.action_horizon :]
+
+            if "action" in action_input and options.get("rtc_guidance_weight") is not None:
+                if options.get("rtc_use_vjp", False):
+                    raise NotImplementedError("GR00T RTC VJP guidance is not implemented.")
+                remaining = 1.0 - t_cont
+                action_estimate = actions + remaining * pred_velocity
+                residual = (action_estimate - prev_actions) * guidance_weights
+                pred_velocity = pred_velocity - float(options["rtc_guidance_weight"]) * residual
 
             # Update actions using euler integration.
             actions = actions + dt * pred_velocity * vel_strength

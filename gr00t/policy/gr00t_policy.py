@@ -410,11 +410,12 @@ class Gr00tPolicy(BasePolicy):
 
         # Step 3: Collate processed inputs into a single batch for model
         collated_inputs = self.collate_fn(processed_inputs)
+        model_options = self._prepare_model_options(options, states, collated_inputs)
         collated_inputs = _rec_to_dtype(collated_inputs, dtype=torch.bfloat16)
 
         # Step 4: Run model inference to predict actions
         with torch.inference_mode():
-            model_pred = self.model.get_action(**collated_inputs)
+            model_pred = self.model.get_action(**collated_inputs, options=model_options)
         normalized_action = model_pred["action_pred"].float()
 
         # Step 5: Decode actions from normalized space back to physical units
@@ -430,6 +431,114 @@ class Gr00tPolicy(BasePolicy):
             key: value.astype(np.float32) for key, value in unnormalized_action.items()
         }
         return casted_action, {}
+
+    def _prepare_model_options(
+        self,
+        options: dict[str, Any] | None,
+        states: list[dict[str, np.ndarray]],
+        collated_inputs: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        """Prepare optional model-side inference controls.
+
+        RTC support is intentionally opt-in through ``options["rtc"]`` so the
+        normal GR00T inference path remains unchanged.
+        """
+
+        if not options:
+            return None
+
+        model_options = {key: value for key, value in options.items() if key != "rtc"}
+        rtc = options.get("rtc")
+        if rtc is None:
+            return model_options or None
+        if not isinstance(rtc, dict):
+            raise ValueError(f"options['rtc'] must be a dict, got {type(rtc).__name__}")
+
+        prev_actions = np.asarray(rtc.get("prev_actions"), dtype=np.float32)
+        if prev_actions.ndim == 2:
+            prev_actions = prev_actions[None, ...]
+        if prev_actions.ndim != 3:
+            raise ValueError(
+                "options['rtc']['prev_actions'] must have shape (horizon, 16) or "
+                f"(batch, horizon, 16), got {prev_actions.shape}"
+            )
+        if prev_actions.shape[0] != len(states):
+            if prev_actions.shape[0] == 1 and len(states) > 1:
+                prev_actions = np.repeat(prev_actions, len(states), axis=0)
+            else:
+                raise ValueError(
+                    f"RTC prev_actions batch {prev_actions.shape[0]} does not match "
+                    f"observation batch {len(states)}"
+                )
+        if prev_actions.shape[-1] != 16:
+            raise ValueError(f"NZ100 RTC prev_actions must be 16D, got {prev_actions.shape[-1]}")
+
+        action_tensors = []
+        for sample_actions, sample_state in zip(prev_actions, states):
+            action_dict = self._split_nz100_action_chunk(sample_actions)
+            normalized_action = self.processor.state_action_processor.apply_action(
+                action=action_dict,
+                embodiment_tag=self.embodiment_tag.value,
+                state=sample_state,
+            )
+            action_tensors.append(self._pad_normalized_action(normalized_action))
+
+        collated_inputs["action"] = torch.stack(action_tensors, dim=0)
+
+        action_horizon = int(rtc.get("action_horizon", prev_actions.shape[1]))
+        overlap_steps = int(rtc.get("rtc_overlap_steps", action_horizon))
+        frozen_steps = int(rtc.get("rtc_frozen_steps", overlap_steps))
+        overlap_steps = max(0, min(overlap_steps, action_horizon))
+        frozen_steps = max(0, min(frozen_steps, overlap_steps))
+
+        model_options.update(
+            {
+                "action_horizon": action_horizon,
+                "rtc_prefix_len": int(rtc.get("rtc_prefix_len", frozen_steps)),
+                "rtc_overlap_steps": overlap_steps,
+                "rtc_frozen_steps": frozen_steps,
+                "rtc_ramp_rate": float(rtc.get("rtc_ramp_rate", 3.0)),
+                "rtc_guidance_weight": float(rtc["rtc_guidance_weight"])
+                if "rtc_guidance_weight" in rtc
+                else None,
+                "rtc_decay_tau": float(rtc.get("rtc_decay_tau", 3.0)),
+                "rtc_decay_end": int(rtc.get("rtc_decay_end", overlap_steps)),
+                "rtc_use_vjp": bool(rtc.get("rtc_use_vjp", False)),
+            }
+        )
+        return model_options
+
+    @staticmethod
+    def _split_nz100_action_chunk(action_chunk: np.ndarray) -> dict[str, np.ndarray]:
+        return {
+            "left_arm": action_chunk[:, 0:7],
+            "left_gripper": action_chunk[:, 7:8],
+            "right_arm": action_chunk[:, 8:15],
+            "right_gripper": action_chunk[:, 15:16],
+        }
+
+    def _pad_normalized_action(self, normalized_action: dict[str, np.ndarray]) -> torch.Tensor:
+        action_keys = self.modality_configs["action"].modality_keys
+        action = torch.cat(
+            [torch.from_numpy(normalized_action[key].astype(np.float32)) for key in action_keys],
+            dim=-1,
+        )
+        processor = self.processor
+        max_action_horizon = int(processor.max_action_horizon)
+        max_action_dim = int(processor.max_action_dim)
+        if action.shape[0] > max_action_horizon:
+            raise ValueError(
+                f"RTC action horizon {action.shape[0]} exceeds processor max_action_horizon "
+                f"{max_action_horizon}"
+            )
+        if action.shape[1] > max_action_dim:
+            raise ValueError(
+                f"RTC action dim {action.shape[1]} exceeds processor max_action_dim {max_action_dim}"
+            )
+        return torch.nn.functional.pad(
+            action,
+            (0, max_action_dim - action.shape[1], 0, max_action_horizon - action.shape[0]),
+        )
 
     def check_action(self, action: dict[str, Any]) -> None:
         """Validate that the action has the correct structure and types.

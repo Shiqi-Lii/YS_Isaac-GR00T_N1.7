@@ -1,0 +1,75 @@
+policy_host: 192.168.168.150
+policy_port: 5555
+control_fps: 30
+open_loop_horizon: 40
+max_steps: 0
+point_time_from_start: 0.0333
+
+# ===启动回位=======================================================
+# true: ROS2 连接后先让双臂回到以下位置并打开夹爪，完成后再启动策略推理。
+# false: 不发送回位轨迹，直接启动策略推理。
+home_on_start: true
+left_home_positions: [0.36, 0.36, -0.01, 1.92, 1.57, 0.00, -1.40]
+# left_home_positions: [0.36, 0.36, -0.01, 1.92, -1.57, 0.00, 1.8]
+right_home_positions: [-0.36, 0.36, -0.01, 1.92, 1.57, 0.00, 0.78]
+home_time_from_start: 4.0
+# ================================================================
+
+# ===指令===========================================================
+language_instruction: Open the blue cylindrical package, and close the package.
+# ================================================================
+
+# ===执行模式=======================================================
+# 可选:
+#   sync_chunk   普通 GR00T chunk 推理
+#   async_queue  异步动作队列预取
+#   rtc_guidance RTC 后台刷新；rtc_guidance_weight=0 时使用 GR00T 原生 inpainting
+execution_mode: async_queue
+
+# async_queue 参数只在 execution_mode 为 async_queue 时生效。
+action_refill_threshold: 6
+
+# RTC 参数只在 execution_mode 为 rtc_guidance 时生效。
+rtc_execute_horizon: 35
+rtc_prefix_len: 5
+# 0 使用 GR00T 原生 RTC/inpainting；>0 才启用 OpenPI-style simple guidance。
+rtc_guidance_weight: 0.0
+rtc_decay_tau: 3.0
+rtc_decay_end: 15
+rtc_use_vjp: false
+rtc_delay_buffer_size: 4
+rtc_max_delay_steps: 12
+# ================================================================
+
+top_camera_topic: /top/image_raw
+wrist_left_camera_topic: /wrist_left/image_raw
+joint_state_topic: /joint_states
+
+left_joint_names:
+  - left_joint1
+  - left_joint2
+  - left_joint3
+  - left_joint4
+  - left_joint5
+  - left_joint6
+  - left_joint7
+right_joint_names:
+  - right_joint1
+  - right_joint2
+  - right_joint3
+  - right_joint4
+  - right_joint5
+  - right_joint6
+  - right_joint7
+
+left_trajectory_topic: /arm_left_controller/joint_trajectory
+right_trajectory_topic: /arm_right_controller/joint_trajectory
+
+# Use the same dual-gripper Modbus keys as lerobot_data_collection.
+gripper_state_topic: /robot/api/io/state
+gripper_cmd_topic: /robot/api/io/cmd
+left_gripper_key: an_out_d9746
+right_gripper_key: an_out_d9747
+modbus_open_value: 1
+modbus_closed_value: 2
+gripper_default_value: 1.0

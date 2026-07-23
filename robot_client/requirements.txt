@@ -1,0 +1,5 @@
+msgpack
+msgpack-numpy
+numpy
+pyyaml
+pyzmq
