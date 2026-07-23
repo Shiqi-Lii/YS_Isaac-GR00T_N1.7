@@ -8,9 +8,9 @@ export HUGGINGFACE_HUB_CACHE="${HUGGINGFACE_HUB_CACHE:-$HF_HOME/hub}"
 export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HOME/transformers}"
 
 # Offline mode: use only models/files already present in the cache paths above.
-export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
-export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
-export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
+export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-0}"
+export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-0}"
+export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-0}"
 
 CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 SAVE_STEPS="${SAVE_STEPS:-5000}"
@@ -26,7 +26,7 @@ CONDA_ROOT="/mnt/16T/App_dir/conda_dir/miniconda3"
 CONDA_ENV="${CONDA_ROOT}/envs/gr00t_lsq"
 
 # Point this to the local N1.7 checkpoint path on your server.
-BASE_MODEL_PATH="${BASE_MODEL_PATH:-$TRANSFORMERS_CACHE/models--nvidia--GR00T-N1.7-3B/snapshots/<snapshot-id>}"
+BASE_MODEL_PATH="${BASE_MODEL_PATH:-nvidia/GR00T-N1.7-3B}"
 DATASET_PATH="${DATASET_PATH:-data/data_open_close_package}"
 
 # 描述ckt
