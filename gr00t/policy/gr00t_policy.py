@@ -415,7 +415,7 @@ class Gr00tPolicy(BasePolicy):
 
         # Step 4: Run model inference to predict actions
         with torch.inference_mode():
-            model_pred = self.model.get_action(collated_inputs, options=model_options)
+            model_pred = self.model.get_action(**collated_inputs, options=model_options)
         normalized_action = model_pred["action_pred"].float()
 
         # Step 5: Decode actions from normalized space back to physical units
@@ -483,7 +483,7 @@ class Gr00tPolicy(BasePolicy):
             )
             action_tensors.append(self._pad_normalized_action(normalized_action))
 
-        collated_inputs["action"] = torch.stack(action_tensors, dim=0)
+        collated_inputs["inputs"]["action"] = torch.stack(action_tensors, dim=0)
 
         action_horizon = int(rtc.get("action_horizon", prev_actions.shape[1]))
         overlap_steps = int(rtc.get("rtc_overlap_steps", action_horizon))
