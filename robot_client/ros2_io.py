@@ -23,8 +23,13 @@ from robot_client.state_builder import NZ100RobotState
 class NZ100Ros2IO:
     """Subscribe robot observations and publish low-level NZ100 commands."""
 
-    def __init__(self, config: Ros2Config) -> None:
+    def __init__(
+        self,
+        config: Ros2Config,
+        active_video_keys: tuple[str, ...] = ("top", "wrist_left"),
+    ) -> None:
         self.config = config
+        self._active_video_keys = tuple(active_video_keys)
         self._rclpy = None
         self._executor = None
         self._executor_thread: threading.Thread | None = None
@@ -85,16 +90,14 @@ class NZ100Ros2IO:
 
         print(
             "Waiting for first NZ100 observation: "
-            f"top_camera={self.config.top_camera_topic}, "
-            f"wrist_left_camera={self.config.wrist_left_camera_topic}, "
+            f"video_keys={self._active_video_keys}, "
             f"joint_state={self.config.joint_state_topic}, "
             f"gripper_state={self.config.gripper_state_topic}"
         )
         self._wait_for_first_observation()
         print(
             "NZ100 ROS2 IO connected: "
-            f"top_camera={self.config.top_camera_topic}, "
-            f"wrist_left_camera={self.config.wrist_left_camera_topic}, "
+            f"video_keys={self._active_video_keys}, "
             f"joint_state={self.config.joint_state_topic}, "
             f"left_traj={self.config.left_trajectory_topic}, "
             f"right_traj={self.config.right_trajectory_topic}, "
@@ -275,9 +278,7 @@ class NZ100Ros2IO:
     ) -> None:
         last_status_time = 0.0
         while True:
-            image_ok = (
-                self._latest_top_image is not None and self._latest_wrist_left_image is not None
-            ) or not require_image
+            image_ok = not require_image or self._required_images_ready()
             joint_ok = self._latest_joint_state is not None or not require_joint_state
             gripper_ok = (
                 self._received_left_gripper_state and self._received_right_gripper_state
@@ -293,9 +294,9 @@ class NZ100Ros2IO:
             now = time.time()
             if now - last_status_time >= 2.0:
                 missing = []
-                if require_image and self._latest_top_image is None:
+                if require_image and "top" in self._active_video_keys and self._latest_top_image is None:
                     missing.append(self.config.top_camera_topic)
-                if require_image and self._latest_wrist_left_image is None:
+                if require_image and "wrist_left" in self._active_video_keys and self._latest_wrist_left_image is None:
                     missing.append(self.config.wrist_left_camera_topic)
                 if require_joint_state and self._latest_joint_state is None:
                     missing.append(self.config.joint_state_topic)
@@ -310,6 +311,13 @@ class NZ100Ros2IO:
                 print(f"Waiting for ROS2 topics: {missing}")
                 last_status_time = now
             time.sleep(0.05)
+
+    def _required_images_ready(self) -> bool:
+        if "top" in self._active_video_keys and self._latest_top_image is None:
+            return False
+        if "wrist_left" in self._active_video_keys and self._latest_wrist_left_image is None:
+            return False
+        return True
 
 
 def _image_msg_to_rgb(msg) -> np.ndarray:

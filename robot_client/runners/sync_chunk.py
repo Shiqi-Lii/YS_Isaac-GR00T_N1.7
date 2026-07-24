@@ -17,7 +17,7 @@ def run(config: ClientConfig, *, ros_io: NZ100Ros2IO | None, mock: bool, once: b
 
     while True:
         print(f"Reading observation before request; executed_steps={executed_steps}")
-        top_image, wrist_left_image, robot_state = read_observation(ros_io, mock=mock)
+        top_image, wrist_left_image, robot_state = read_observation(ros_io, config=config, mock=mock)
         print(f"Requesting action chunk from GR00T server; state={format_state(robot_state)}")
         action_chunk = client.infer(
             top_image=top_image, wrist_left_image=wrist_left_image, robot_state=robot_state

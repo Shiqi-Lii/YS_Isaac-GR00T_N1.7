@@ -1,9 +1,12 @@
 policy_host: 192.168.168.150
 policy_port: 5555
-control_fps: 30
+control_fps: 10
 open_loop_horizon: 40
 max_steps: 0
-point_time_from_start: 0.0333
+point_time_from_start: 0.1
+# 双摄 checkpoint: [top, wrist_left]
+# 临时测试单摄 top checkpoint: [top]
+video_keys: [top, wrist_left]
 
 # ===启动回位=======================================================
 # true: ROS2 连接后先让双臂回到以下位置并打开夹爪，完成后再启动策略推理。
@@ -17,6 +20,8 @@ home_time_from_start: 4.0
 
 # ===指令===========================================================
 language_instruction: Open the blue cylindrical package, and close the package.
+# language_instruction: Open the blue cylindrical package, put the battery inside, and close the package.
+
 # ================================================================
 
 # ===执行模式=======================================================
@@ -27,13 +32,13 @@ language_instruction: Open the blue cylindrical package, and close the package.
 execution_mode: async_queue
 
 # async_queue 参数只在 execution_mode 为 async_queue 时生效。
-action_refill_threshold: 6
+action_refill_threshold: 4
 
 # RTC 参数只在 execution_mode 为 rtc_guidance 时生效。
 rtc_execute_horizon: 35
 rtc_prefix_len: 5
 # 0 使用 GR00T 原生 RTC/inpainting；>0 才启用 OpenPI-style simple guidance。
-rtc_guidance_weight: 0.0
+rtc_guidance_weight: 5.0
 rtc_decay_tau: 3.0
 rtc_decay_end: 15
 rtc_use_vjp: false

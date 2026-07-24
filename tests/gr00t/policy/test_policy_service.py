@@ -20,6 +20,8 @@ Uses a mock policy to avoid loading real model weights. The server is
 started in a background thread and the client connects on localhost.
 """
 
+import subprocess
+import sys
 import threading
 import time
 
@@ -29,6 +31,24 @@ import msgpack
 import numpy as np
 import pytest
 import zmq
+
+
+def test_policy_client_import_does_not_require_torch():
+    script = """
+import importlib.abc
+import sys
+
+class BlockTorch(importlib.abc.MetaPathFinder):
+    def find_spec(self, fullname, path=None, target=None):
+        if fullname == "torch" or fullname.startswith("torch."):
+            raise ModuleNotFoundError("torch intentionally unavailable")
+        return None
+
+sys.meta_path.insert(0, BlockTorch())
+from gr00t.policy.server_client import PolicyClient
+assert PolicyClient.__name__ == "PolicyClient"
+"""
+    subprocess.run([sys.executable, "-c", script], check=True)
 
 
 class MockPolicy:

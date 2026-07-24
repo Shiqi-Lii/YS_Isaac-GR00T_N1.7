@@ -16,6 +16,11 @@
 在 GR00T 仓库根目录启动：
 
 ```bash
+HF_HOME=/mnt/16T/lisq5005_dir/.cache/huggingface \
+HUGGINGFACE_HUB_CACHE=/mnt/16T/lisq5005_dir/.cache/huggingface/hub \
+HF_HUB_OFFLINE=0 \
+TRANSFORMERS_OFFLINE=0 \
+HF_DATASETS_OFFLINE=0 \
 python gr00t/eval/run_gr00t_server.py \
   --model-path /path/to/nz100/checkpoint \
   --embodiment-tag NZ100 \
@@ -28,15 +33,15 @@ python gr00t/eval/run_gr00t_server.py \
 先安装客户端依赖，并确保机器人电脑也能 import 当前 GR00T 仓库里的 `gr00t`：
 
 ```bash
-pip install -r NZ100/robot_client/requirements.txt
+pip install -r robot_client/requirements.txt
 pip install -e .
 ```
 
 mock 测试不会控制真实机器人：
 
 ```bash
-PYTHONPATH=NZ100 python -m robot_client.main \
-  --config NZ100/robot_client/configs/nz100_client.yaml \
+python -m robot_client.main \
+  --config robot_client/configs/nz100_client.yaml \
   --mock \
   --once
 ```
@@ -45,8 +50,8 @@ PYTHONPATH=NZ100 python -m robot_client.main \
 
 ```bash
 source /home/f/ysrobot_ws2/common/install/setup.bash
-PYTHONPATH=NZ100 python -m robot_client.main \
-  --config NZ100/robot_client/configs/nz100_client.yaml
+python -m robot_client.main \
+  --config robot_client/configs/nz100_client.yaml
 ```
 
 ## GR00T Observation 格式
@@ -87,7 +92,7 @@ GR00T 返回分组 action 后，client 会拼成机器人执行用的 16 维：
 主要配置文件：
 
 ```text
-NZ100/robot_client/configs/nz100_client.yaml
+robot_client/configs/nz100_client.yaml
 ```
 
 常用字段：
@@ -95,6 +100,7 @@ NZ100/robot_client/configs/nz100_client.yaml
 ```yaml
 policy_host: 192.168.168.150
 policy_port: 5555
+video_keys: [top, wrist_left]  # 单摄 top checkpoint 临时改成 [top]
 control_fps: 30
 open_loop_horizon: 40
 language_instruction: Open the blue cylindrical package, and close the package.

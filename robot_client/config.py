@@ -15,6 +15,7 @@ class ClientConfig:
     server_port: int = 5555
     prompt: str = "pick up the bottle and place it in the blue box"
     image_size: int = 224
+    video_keys: tuple[str, ...] = ("top", "wrist_left")
     control_hz: float = 100.0
     open_loop_horizon: int = 40
     max_steps: int = 0
@@ -139,6 +140,7 @@ def _flat_client_data(data: dict[str, Any]) -> dict[str, Any]:
         "max_steps": "max_steps",
         "action_refill_threshold": "action_refill_threshold",
         "language_instruction": "prompt",
+        "video_keys": "video_keys",
         "execution_mode": "execution_mode",
         "rtc_execute_horizon": "rtc_execute_horizon",
         "rtc_prefix_len": "rtc_prefix_len",

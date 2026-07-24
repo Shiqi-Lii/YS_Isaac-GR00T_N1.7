@@ -49,6 +49,7 @@ def main() -> None:
         server_port=client_base.server_port if args.port is None else args.port,
         prompt=client_base.prompt if args.prompt is None else args.prompt,
         image_size=client_base.image_size,
+        video_keys=client_base.video_keys,
         control_hz=client_base.control_hz if args.control_hz is None else args.control_hz,
         open_loop_horizon=client_base.open_loop_horizon,
         max_steps=client_base.max_steps,
@@ -69,6 +70,7 @@ def main() -> None:
         "Starting NZ100 GR00T client: "
         f"server=tcp://{config.server_host}:{config.server_port}, "
         f"mode={config.execution_mode}, "
+        f"video_keys={config.video_keys}, "
         f"control_hz={config.control_hz}, "
         f"open_loop_horizon={config.open_loop_horizon}, "
         f"action_refill_threshold={config.action_refill_threshold}, "
@@ -80,7 +82,7 @@ def main() -> None:
     ros_io = None
     try:
         if not args.mock:
-            ros_io = NZ100Ros2IO(app_config.ros2)
+            ros_io = NZ100Ros2IO(app_config.ros2, active_video_keys=config.video_keys)
             ros_io.connect()
             if app_config.ros2.home_on_start:
                 ros_io.move_to_home()

@@ -44,7 +44,7 @@ def run(config: ClientConfig, *, ros_io: NZ100Ros2IO | None, mock: bool, once: b
         raise ValueError(f"control_hz must be positive for RTC, got {config.control_hz}")
 
     print("Reading initial observation for RTC.")
-    top_image, wrist_left_image, robot_state = read_observation(ros_io, mock=mock)
+    top_image, wrist_left_image, robot_state = read_observation(ros_io, config=config, mock=mock)
     print(f"Requesting initial RTC action chunk; state={format_state(robot_state)}")
     inference_start_s = time.monotonic()
     current_chunk = client.infer(
@@ -173,7 +173,7 @@ def _rtc_inference_loop(
             predicted_delay_steps = _clamp_rtc_delay_steps(max(max(delay_buffer), int(config.rtc_prefix_len)), config)
 
         try:
-            top_image, wrist_left_image, robot_state = read_observation(ros_io, mock=mock)
+            top_image, wrist_left_image, robot_state = read_observation(ros_io, config=config, mock=mock)
             prefix_len = min(predicted_delay_steps, previous_chunk.shape[0])
             previous_for_rtc = previous_chunk if prefix_len > 0 else None
             print(

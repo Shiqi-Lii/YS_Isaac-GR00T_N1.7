@@ -13,7 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from .gr00t_policy import Gr00tPolicy
 from .policy import BasePolicy, PolicyWrapper
 
 
@@ -22,3 +21,12 @@ __all__ = [
     "Gr00tPolicy",
     "PolicyWrapper",
 ]
+
+
+def __getattr__(name: str):
+    """Load model-backed policies only when they are explicitly requested."""
+    if name == "Gr00tPolicy":
+        from .gr00t_policy import Gr00tPolicy
+
+        return Gr00tPolicy
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
