@@ -9,14 +9,14 @@ cd "$REPO_ROOT"
 # Server-local Hugging Face cache. Override these before launching if needed.
 export HF_HOME="${HF_HOME:-/mnt/16T/lisq5005_dir/.cache/huggingface}"
 export HUGGINGFACE_HUB_CACHE="${HUGGINGFACE_HUB_CACHE:-$HF_HOME/hub}"
-export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HOME/transformers}"
+# export TRANSFORMERS_CACHE="${TRANSFORMERS_CACHE:-$HF_HOME/transformers}"
 
 # Offline mode: use only models/files already present in the cache paths above.
-export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-1}"
-export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-1}"
-export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-1}"
+export HF_HUB_OFFLINE="${HF_HUB_OFFLINE:-0}"
+export TRANSFORMERS_OFFLINE="${TRANSFORMERS_OFFLINE:-0}"
+export HF_DATASETS_OFFLINE="${HF_DATASETS_OFFLINE:-0}"
 
-CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
+CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-1}"
 SAVE_STEPS="${SAVE_STEPS:-5000}"
 MAX_STEPS="${MAX_STEPS:-30000}"
 USE_WANDB="${USE_WANDB:-1}"
@@ -31,10 +31,10 @@ CONDA_ENV="${CONDA_ROOT}/envs/gr00t_n17_lsq"
 
 # Point this to the local N1.7 checkpoint path on your server.
 BASE_MODEL_PATH="${BASE_MODEL_PATH:-/mnt/16T/lisq5005_dir/.cache/huggingface/hub/models--nvidia--GR00T-N1.7-3B/snapshots/2fc962b973bccdd5d8ce4f67cc63b264d6886495}"
-DATASET_PATH="${DATASET_PATH:-data/data_open_close_package}"
+DATASET_PATH="${DATASET_PATH:-data/data_cylindrical_package}"
 
 # 描述ckt
-RUN_DESC="${RUN_DESC:-open_close_package}"
+RUN_DESC="${RUN_DESC:-cylindrical_package}"
 OUTPUT_DIR="${OUTPUT_DIR:-/mnt/16T/lisq5005_dir/YS_Isaac-GR00T_N1.7/checkpoints/nz100_${RUN_DESC}}"
 LOG_DIR="${LOG_DIR:-logs}"
 LOG_FILE="${LOG_FILE:-$LOG_DIR/finetune_nz100_${RUN_DESC}.log}"
